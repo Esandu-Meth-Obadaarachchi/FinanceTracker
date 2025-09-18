@@ -407,4 +407,138 @@ class ApiService {
       throw Exception('Failed to get monthly totals: $e');
     }
   }
+
+  // LOAN METHODS
+  static Future<String> addLoan({
+    required String reason,
+    required double amount,
+    required String category,
+    required DateTime dueDate,
+    String? description,
+  }) async {
+    try {
+      if (currentUserId == null) throw Exception('User not authenticated');
+
+      DocumentReference docRef = await _firestore
+          .collection('users')
+          .doc(currentUserId)
+          .collection('loans')
+          .add({
+        'reason': reason,
+        'amount': amount,
+        'category': category,
+        'description': description ?? '',
+        'dueDate': Timestamp.fromDate(dueDate),
+        'status': 'pending', // 'pending' or 'paid'
+        'createdAt': Timestamp.now(),
+        'updatedAt': Timestamp.now(),
+      });
+
+      return docRef.id;
+    } catch (e) {
+      throw Exception('Failed to add loan: $e');
+    }
+  }
+
+  static Future<void> updateLoan({
+    required String loanId,
+    String? reason,
+    double? amount,
+    String? category,
+    DateTime? dueDate,
+    String? description,
+  }) async {
+    try {
+      if (currentUserId == null) throw Exception('User not authenticated');
+
+      Map<String, dynamic> updateData = {'updatedAt': Timestamp.now()};
+
+      if (reason != null) updateData['reason'] = reason;
+      if (amount != null) updateData['amount'] = amount;
+      if (category != null) updateData['category'] = category;
+      if (dueDate != null) updateData['dueDate'] = Timestamp.fromDate(dueDate);
+      if (description != null) updateData['description'] = description;
+
+      await _firestore
+          .collection('users')
+          .doc(currentUserId)
+          .collection('loans')
+          .doc(loanId)
+          .update(updateData);
+    } catch (e) {
+      throw Exception('Failed to update loan: $e');
+    }
+  }
+
+  static Future<void> deleteLoan(String loanId) async {
+    try {
+      if (currentUserId == null) throw Exception('User not authenticated');
+
+      await _firestore
+          .collection('users')
+          .doc(currentUserId)
+          .collection('loans')
+          .doc(loanId)
+          .delete();
+    } catch (e) {
+      throw Exception('Failed to delete loan: $e');
+    }
+  }
+
+  static Future<void> convertLoanToExpense({
+    required String loanId,
+    required DateTime paidDate,
+  }) async {
+    try {
+      if (currentUserId == null) throw Exception('User not authenticated');
+
+      // Get loan data
+      DocumentSnapshot loanDoc = await _firestore
+          .collection('users')
+          .doc(currentUserId)
+          .collection('loans')
+          .doc(loanId)
+          .get();
+
+      if (!loanDoc.exists) throw Exception('Loan not found');
+      Map<String, dynamic> loanData = loanDoc.data() as Map<String, dynamic>;
+
+      // Add to expenses collection
+      await addExpense(
+        reason: loanData['reason'],
+        amount: (loanData['amount'] as num).toDouble(),
+        category: loanData['category'],
+        date: paidDate,
+        description: loanData['description'],
+      );
+
+      // Update loan status to 'paid'
+      await _firestore
+          .collection('users')
+          .doc(currentUserId)
+          .collection('loans')
+          .doc(loanId)
+          .update({'status': 'paid', 'updatedAt': Timestamp.now()});
+
+    } catch (e) {
+      throw Exception('Failed to convert loan to expense: $e');
+    }
+  }
+
+  static Stream<QuerySnapshot> getLoans({String? status}) {
+    if (currentUserId == null) throw Exception('User not authenticated');
+
+    Query query = _firestore
+        .collection('users')
+        .doc(currentUserId)
+        .collection('loans')
+        .orderBy('dueDate', descending: false);
+
+    if (status != null) {
+      query = query.where('status', isEqualTo: status);
+    }
+
+    return query.snapshots();
+  }
+
 }

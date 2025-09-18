@@ -455,7 +455,7 @@ class _ViewFinancesScreenState extends State<ViewFinancesScreen> {
             const SizedBox(height: 8),
             Text(title, style: TextStyle(fontSize: 14, color: Colors.grey[700], fontWeight: FontWeight.w500)),
             const SizedBox(height: 4),
-            Text(NumberFormat.simpleCurrency(locale: 'en_US').format(amount), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+            Text(NumberFormat.simpleCurrency(locale: 'sr_Latn').format(amount), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
           ],
         ),
       ),

@@ -7,7 +7,7 @@ import 'add_pending_income_screen.dart';
 import 'view_finances_screen.dart';
 import 'auth_service.dart';
 import '../utils/api_service.dart';
-
+import 'manage_loans_screen.dart';
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
@@ -430,10 +430,10 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
               GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                childAspectRatio: 1.2,
+                crossAxisCount: 3, // <-- TO 3 for better layout
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 1, // Adjust aspect ratio for 3 columns
                 children: [
                   _buildActionCard(
                     icon: Icons.add_circle,
@@ -449,16 +449,23 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                   ),
                   _buildActionCard(
                     icon: Icons.schedule,
-                    title: 'Pending Income',
+                    title: 'Pending', // Shorten title
                     color: const Color(0xFFFF9800),
                     onTap: () => _navigateToScreen(const AddPendingIncomeScreen()),
                   ),
                   _buildActionCard(
+                    icon: Icons.credit_score, // New Icon
+                    title: 'Loans', // New Title
+                    color: Colors.blueGrey, // New Color
+                    onTap: () => _navigateToScreen(const ManageLoansScreen()), // New Action
+                  ),
+                  _buildActionCard(
                     icon: Icons.analytics,
-                    title: 'View Finances',
+                    title: 'Overview', // Shorten title
                     color: const Color(0xFF9C27B0),
                     onTap: () => _navigateToScreen(const ViewFinancesScreen()),
                   ),
+                  // You can add a 6th button here for perfect alignment if you wish
                 ],
               ),
               const SizedBox(height: 24),
