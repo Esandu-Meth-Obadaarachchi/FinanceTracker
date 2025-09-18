@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/api_service.dart';
-
+import 'manage_pending_income_screen.dart';
 class AddPendingIncomeScreen extends StatefulWidget {
   const AddPendingIncomeScreen({Key? key}) : super(key: key);
 
@@ -43,6 +43,21 @@ class _AddPendingIncomeScreenState extends State<AddPendingIncomeScreen> {
           'Add Pending Income',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
+        // Add the actions property here
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.paid_outlined,color: Colors.black,),
+            tooltip: 'Manage Pending Income',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ManagePendingIncomeScreen(),
+                ),
+              );
+            },
+          ),
+        ],
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
