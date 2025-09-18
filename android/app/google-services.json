@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1003347289396",
+    "project_id": "financialtracker-b77bf",
+    "storage_bucket": "financialtracker-b77bf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1003347289396:android:4b45b75d9f32548561b161",
+        "android_client_info": {
+          "package_name": "com.example.financial_tracker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA8NDuc3WNb3x-Jg607DFqeCyWJJtrWvSo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

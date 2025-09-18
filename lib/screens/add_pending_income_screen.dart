@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/api_service.dart';
 
 class AddPendingIncomeScreen extends StatefulWidget {
   const AddPendingIncomeScreen({Key? key}) : super(key: key);
@@ -13,8 +14,8 @@ class _AddPendingIncomeScreenState extends State<AddPendingIncomeScreen> {
   final _descriptionController = TextEditingController();
   final _reasonController = TextEditingController();
   String _selectedCategory = 'Salary';
-  DateTime _selectedDate = DateTime.now();
   DateTime _expectedDate = DateTime.now().add(const Duration(days: 30));
+  bool _isLoading = false;
 
   final List<String> _incomeCategories = [
     'Salary',
@@ -30,6 +31,7 @@ class _AddPendingIncomeScreenState extends State<AddPendingIncomeScreen> {
   void dispose() {
     _amountController.dispose();
     _descriptionController.dispose();
+    _reasonController.dispose();
     super.dispose();
   }
 
@@ -106,7 +108,7 @@ class _AddPendingIncomeScreenState extends State<AddPendingIncomeScreen> {
               ),
               const SizedBox(height: 24),
 
-              // reason Input
+              // Reason Input
               const Text(
                 'Reason',
                 style: TextStyle(
@@ -116,12 +118,10 @@ class _AddPendingIncomeScreenState extends State<AddPendingIncomeScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-
               TextFormField(
                 controller: _reasonController,
                 decoration: const InputDecoration(
-                  hintText: 'Reason',
-
+                  hintText: 'Enter reason for pending income',
                 ),
                 style: const TextStyle(
                   fontSize: 18,
@@ -168,6 +168,9 @@ class _AddPendingIncomeScreenState extends State<AddPendingIncomeScreen> {
                   }
                   if (double.tryParse(value) == null) {
                     return 'Please enter a valid number';
+                  }
+                  if (double.parse(value) <= 0) {
+                    return 'Amount must be greater than 0';
                   }
                   return null;
                 },
@@ -244,7 +247,7 @@ class _AddPendingIncomeScreenState extends State<AddPendingIncomeScreen> {
                   border: Border.all(color: Colors.grey),
                 ),
                 child: InkWell(
-                  onTap: _selectExpectedDate,
+                  onTap: _isLoading ? null : _selectExpectedDate,
                   child: Row(
                     children: [
                       const Icon(
@@ -292,7 +295,7 @@ class _AddPendingIncomeScreenState extends State<AddPendingIncomeScreen> {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: _addPendingIncome,
+                  onPressed: _isLoading ? null : _addPendingIncome,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFFF9800),
                     shape: RoundedRectangleBorder(
@@ -300,7 +303,16 @@ class _AddPendingIncomeScreenState extends State<AddPendingIncomeScreen> {
                     ),
                     elevation: 4,
                   ),
-                  child: const Row(
+                  child: _isLoading
+                      ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                      : const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
@@ -374,38 +386,93 @@ class _AddPendingIncomeScreenState extends State<AddPendingIncomeScreen> {
     }
   }
 
-  void _addPendingIncome() {
+  Future<void> _addPendingIncome() async {
     if (_formKey.currentState!.validate()) {
-      // Here you would typically save to database
-      // For now, just show a success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle, color: Colors.white),
-              const SizedBox(width: 12),
-              Text(
-                'Pending income of \$${_amountController.text} added successfully!',
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFFFF9800),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-
-      // Clear form
-      _amountController.clear();
-      _descriptionController.clear();
       setState(() {
-        _selectedCategory = 'Salary';
-        _expectedDate = DateTime.now().add(const Duration(days: 30));
+        _isLoading = true;
       });
+
+      try {
+        // Save to Firestore using ApiService
+        final pendingIncomeId = await ApiService.addPendingIncome(
+          reason: _reasonController.text.trim(),
+          amount: double.parse(_amountController.text),
+          category: _selectedCategory,
+          expectedDate: _expectedDate,
+          description: _descriptionController.text.trim().isEmpty
+              ? null
+              : _descriptionController.text.trim(),
+        );
+
+        if (mounted) {
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Pending income of \$${_amountController.text} added successfully!',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: const Color(0xFFFF9800),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+
+          // Clear form
+          _amountController.clear();
+          _descriptionController.clear();
+          _reasonController.clear();
+          setState(() {
+            _selectedCategory = 'Salary';
+            _expectedDate = DateTime.now().add(const Duration(days: 30));
+          });
+
+          // Navigate back to previous screen
+          Navigator.pop(context, true); // Pass true to indicate data was added
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.error, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Failed to add pending income: ${e.toString()}',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
     }
   }
 }

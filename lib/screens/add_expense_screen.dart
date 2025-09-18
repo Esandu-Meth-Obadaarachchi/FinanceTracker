@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/api_service.dart';
 
 class AddExpenseScreen extends StatefulWidget {
   const AddExpenseScreen({Key? key}) : super(key: key);
@@ -14,6 +15,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final _reasonController = TextEditingController();
   String _selectedCategory = 'Food & Dining';
   DateTime _selectedDate = DateTime.now();
+  bool _isLoading = false;
 
   final List<String> _expenseCategories = [
     'Food & Dining',
@@ -32,6 +34,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   void dispose() {
     _amountController.dispose();
     _descriptionController.dispose();
+    _reasonController.dispose();
     super.dispose();
   }
 
@@ -107,7 +110,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              // reason Input
+
+              // Reason Input
               const Text(
                 'Reason',
                 style: TextStyle(
@@ -117,12 +121,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-
               TextFormField(
                 controller: _reasonController,
                 decoration: const InputDecoration(
-                  hintText: 'Reason',
-
+                  hintText: 'Reason for expense',
                 ),
                 style: const TextStyle(
                   fontSize: 18,
@@ -136,6 +138,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 },
               ),
               const SizedBox(height: 24),
+
               // Amount Input
               const Text(
                 'Amount',
@@ -292,7 +295,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: _addExpense,
+                  onPressed: _isLoading ? null : _addExpense,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFf44336),
                     shape: RoundedRectangleBorder(
@@ -300,7 +303,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     ),
                     elevation: 4,
                   ),
-                  child: const Row(
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
@@ -380,38 +385,65 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     }
   }
 
-  void _addExpense() {
+  Future<void> _addExpense() async {
     if (_formKey.currentState!.validate()) {
-      // Here you would typically save to database
-      // For now, just show a success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle, color: Colors.white),
-              const SizedBox(width: 12),
-              Text(
-                'Expense of \${_amountController.text} added successfully!',
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFFf44336),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-
-      // Clear form
-      _amountController.clear();
-      _descriptionController.clear();
       setState(() {
-        _selectedCategory = 'Food & Dining';
-        _selectedDate = DateTime.now();
+        _isLoading = true;
       });
+
+      try {
+        await ApiService.addExpense(
+          reason: _reasonController.text.trim(),
+          amount: double.parse(_amountController.text),
+          category: _selectedCategory,
+          date: _selectedDate,
+          description: _descriptionController.text.trim(),
+        );
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Text(
+                  'Expense added successfully!',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFFf44336),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+
+        // Clear form
+        _amountController.clear();
+        _descriptionController.clear();
+        _reasonController.clear();
+        setState(() {
+          _selectedCategory = 'Food & Dining';
+          _selectedDate = DateTime.now();
+        });
+
+        // Navigate back
+        Navigator.of(context).pop();
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } finally {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 }

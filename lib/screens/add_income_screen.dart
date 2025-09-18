@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/api_service.dart';
 
 class AddIncomeScreen extends StatefulWidget {
   const AddIncomeScreen({Key? key}) : super(key: key);
@@ -14,6 +15,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
   final _reasonController = TextEditingController();
   String _selectedCategory = 'Salary';
   DateTime _selectedDate = DateTime.now();
+  bool _isLoading = false;
 
   final List<String> _incomeCategories = [
     'Salary',
@@ -29,6 +31,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
   void dispose() {
     _amountController.dispose();
     _descriptionController.dispose();
+    _reasonController.dispose();
     super.dispose();
   }
 
@@ -105,7 +108,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
               ),
               const SizedBox(height: 24),
 
-              // reason Input
+              // Reason Input
               const Text(
                 'Reason',
                 style: TextStyle(
@@ -115,12 +118,10 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-
               TextFormField(
                 controller: _reasonController,
                 decoration: const InputDecoration(
-                  hintText: 'Reason',
-
+                  hintText: 'Enter reason for income',
                 ),
                 style: const TextStyle(
                   fontSize: 18,
@@ -167,6 +168,9 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                   }
                   if (double.tryParse(value) == null) {
                     return 'Please enter a valid number';
+                  }
+                  if (double.parse(value) <= 0) {
+                    return 'Amount must be greater than 0';
                   }
                   return null;
                 },
@@ -243,7 +247,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                   border: Border.all(color: Colors.grey),
                 ),
                 child: InkWell(
-                  onTap: _selectDate,
+                  onTap: _isLoading ? null : _selectDate,
                   child: Row(
                     children: [
                       const Icon(
@@ -291,7 +295,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: _addIncome,
+                  onPressed: _isLoading ? null : _addIncome,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4CAF50),
                     shape: RoundedRectangleBorder(
@@ -299,7 +303,16 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                     ),
                     elevation: 4,
                   ),
-                  child: const Row(
+                  child: _isLoading
+                      ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                      : const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
@@ -373,38 +386,93 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
     }
   }
 
-  void _addIncome() {
+  Future<void> _addIncome() async {
     if (_formKey.currentState!.validate()) {
-      // Here you would typically save to database
-      // For now, just show a success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle, color: Colors.white),
-              const SizedBox(width: 12),
-              Text(
-                'Income of \$${_amountController.text} added successfully!',
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFF4CAF50),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-
-      // Clear form
-      _amountController.clear();
-      _descriptionController.clear();
       setState(() {
-        _selectedCategory = 'Salary';
-        _selectedDate = DateTime.now();
+        _isLoading = true;
       });
+
+      try {
+        // Save to Firestore using ApiService
+        final incomeId = await ApiService.addIncome(
+          reason: _reasonController.text.trim(),
+          amount: double.parse(_amountController.text),
+          category: _selectedCategory,
+          date: _selectedDate,
+          description: _descriptionController.text.trim().isEmpty
+              ? null
+              : _descriptionController.text.trim(),
+        );
+
+        if (mounted) {
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Income of \$${_amountController.text} added successfully!',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: const Color(0xFF4CAF50),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+
+          // Clear form
+          _amountController.clear();
+          _descriptionController.clear();
+          _reasonController.clear();
+          setState(() {
+            _selectedCategory = 'Salary';
+            _selectedDate = DateTime.now();
+          });
+
+          // Navigate back to home screen
+          Navigator.pop(context, true); // Pass true to indicate data was added
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.error, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Failed to add income: ${e.toString()}',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
     }
   }
 }
